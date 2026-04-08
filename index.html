@@ -3,144 +3,225 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IceBox Premium | Gestão</title>
+    <title>IceBox Premium | Sistema de Gestão</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Nunito', sans-serif; background-color: #080808; color: white; overflow-x: hidden; }
         .bebas { font-family: 'Bebas Neue', sans-serif; }
         .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .bg-fixed-custom { position: fixed; inset: 0; z-index: -1; background-size: cover; background-position: center; transition: filter 0.5s ease, background-image 0.5s ease; filter: blur(10px) brightness(0.4); }
-        /* Esconder scrollbar */
+        .bg-fixed-custom { position: fixed; inset: 0; z-index: -1; background-size: cover; background-position: center; transition: filter 0.5s ease; filter: blur(10px) brightness(0.3); }
         ::-webkit-scrollbar { width: 0px; }
+        .card-anim { animation: fadeIn 0.4s ease-out both; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
-    <div id="bg-fade" class="bg-fixed-custom" style="background-image: url('https://images.unsplash.com/photo-1608270586620-248524c67de9?w=1400&q=80');"></div>
+    <div id="bg-overlay" class="bg-fixed-custom" style="background-image: url('https://images.unsplash.com/photo-1608270586620-248524c67de9?w=1400&q=80');"></div>
 
-    <div id="app" class="max-w-md mx-auto min-h-screen relative pb-24">
-        </div>
+    <div id="app"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <script>
-        // --- DADOS INICIAIS ---
-        let sections = [
-            { id: 'cervejas', title: 'Cervejas', emoji: '🍺', accent: '#f5c842', bg: 'https://images.unsplash.com/photo-1608270586620-248524c67de9?w=1400&q=80' },
-            { id: 'ices', title: 'Ices', emoji: '🧊', accent: '#38bdf8', bg: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=1400&q=80' },
-            { id: 'energeticos', title: 'Energéticos', emoji: '⚡', accent: '#a3e635', bg: 'https://images.unsplash.com/photo-1598343175492-9e7dc62f2a3a?w=1400&q=80' }
-        ];
+        // --- BANCO DE DADOS LOCAL ---
+        let state = {
+            sections: [
+                { id: 'cervejas', title: 'Cervejas', emoji: '🍺', accent: '#f5c842' },
+                { id: 'ices', title: 'Ices', emoji: '🧊', accent: '#38bdf8' },
+                { id: 'energeticos', title: 'Energéticos', emoji: '⚡', accent: '#a3e635' }
+            ],
+            products: JSON.parse(localStorage.getItem('icebox_products')) || [
+                { id: 1, section: 'cervejas', name: 'Heineken 0.0', price: 8.01, img: 'https://images.unsplash.com/photo-1618183479302-1e0aa382c36b?w=300&q=80' },
+                { id: 2, section: 'cervejas', name: 'Brahma Long Neck', price: 6.50, img: 'https://images.unsplash.com/photo-1535958636474-b021ee887b13?w=300&q=80' },
+                { id: 3, section: 'cervejas', name: 'Antarctica', price: 6.00, img: 'https://images.unsplash.com/photo-1566633806827-5e590a3f3da0?w=300&q=80' },
+                { id: 4, section: 'ices', name: '51 Ice Limão', price: 9.00, img: 'https://images.unsplash.com/photo-1571950006418-f4563e22053b?w=300&q=80' },
+                { id: 5, section: 'energeticos', name: 'Monster Original', price: 14.00, img: 'https://images.unsplash.com/photo-1622543925917-763c34d1a86e?w=300&q=80' }
+            ],
+            orders: JSON.parse(localStorage.getItem('icebox_orders')) || {},
+            currentMesa: 1,
+            editMode: false
+        };
 
-        let products = [
-            { id: 1, section: 'cervejas', name: 'Heineken 0.0', price: 8.01, img: 'https://images.unsplash.com/photo-1618183479302-1e0aa382c36b?w=300&q=80' },
-            { id: 2, section: 'cervejas', name: 'Brahma Long Neck', price: 6.50, img: 'https://images.unsplash.com/photo-1535958636474-b021ee887b13?w=300&q=80' },
-            { id: 3, section: 'ices', name: '51 Ice Limão', price: 9.00, img: 'https://images.unsplash.com/photo-1571950006418-f4563e22053b?w=300&q=80' }
-        ];
-
-        let orders = JSON.parse(localStorage.getItem('icebox_orders')) || {};
-        let currentMesa = 1;
-        let editMode = false;
-
-        // --- FUNÇÕES DE RENDERIZAÇÃO ---
-        function renderApp() {
+        // --- MOTOR DE RENDERIZAÇÃO ---
+        function render() {
             const urlParams = new URLSearchParams(window.location.search);
-            const mesaCliente = urlParams.get('mesa');
+            const mesaId = urlParams.get('mesa');
+            const app = document.getElementById('app');
 
-            if (mesaCliente) {
-                renderCliente(mesaCliente);
+            if (mesaId) {
+                renderCliente(app, mesaId);
             } else {
-                renderAdmin();
+                renderAdmin(app);
             }
         }
 
-        function renderAdmin() {
-            const app = document.getElementById('app');
-            app.innerHTML = `
-                <header class="sticky top-0 z-50 p-4 glass flex justify-between items-center">
-                    <div>
-                        <p class="text-[10px] uppercase tracking-widest text-gray-400">Distribuidora</p>
-                        <h1 class="bebas text-2xl">IceBox Premium</h1>
-                    </div>
-                    <button onclick="toggleEditMode()" class="p-2 rounded-full ${editMode ? 'bg-yellow-500 text-black' : 'bg-white/10 text-white'}">
-                        ⚙️
-                    </button>
-                </header>
-
-                <div class="flex overflow-x-auto p-2 gap-2 sticky top-[72px] bg-black/50 backdrop-blur-lg z-40">
-                    ${[1,2,3,4,5,6,7,8,9,10].map(n => `
-                        <button onclick="setMesa(${n})" class="px-4 py-1 rounded-lg text-xs font-bold transition-all ${currentMesa == n ? 'bg-yellow-500/20 border border-yellow-500 text-yellow-500' : 'bg-white/5 border border-white/10 text-gray-400'}">
-                            ${String(n).padStart(3, '0')}
+        // --- TELA DO ADMINISTRADOR ---
+        function renderAdmin(container) {
+            container.innerHTML = `
+                <div class="max-w-md mx-auto pb-24">
+                    <header class="sticky top-0 z-50 p-4 glass flex justify-between items-center mb-2">
+                        <div>
+                            <p class="text-[10px] uppercase tracking-widest text-gray-400">ADM - Disk Dourado</p>
+                            <h1 class="bebas text-2xl tracking-tight">IceBox Premium</h1>
+                        </div>
+                        <button onclick="toggleEdit()" class="w-10 h-10 rounded-full flex items-center justify-center transition-all ${state.editMode ? 'bg-yellow-500 text-black' : 'bg-white/10 text-white'}">
+                            ⚙️
                         </button>
-                    `).join('')}
-                </div>
+                    </header>
 
-                <div class="p-4">
-                    <p class="text-sm font-bold text-yellow-500">Mesa ${String(currentMesa).padStart(3, '0')}</p>
-                    <div id="product-list">
-                        ${renderProducts()}
+                    <div class="flex overflow-x-auto p-2 gap-2 sticky top-[72px] bg-black/60 backdrop-blur-md z-40 mb-4">
+                        ${[1,2,3,4,5,6,7,8,9,10].map(n => `
+                            <button onclick="setMesa(${n})" class="px-4 py-2 rounded-xl text-xs font-black transition-all flex-shrink-0 ${state.currentMesa == n ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20' : 'bg-white/5 text-gray-400'}">
+                                MESA ${String(n).padStart(2, '0')}
+                            </button>
+                        `).join('')}
                     </div>
-                </div>
 
-                <div class="fixed bottom-20 right-4">
-                    <button onclick="showQR()" class="w-12 h-12 bg-white/10 backdrop-blur-xl border border-white/20 rounded-full flex items-center justify-center text-xl shadow-2xl">📱</button>
+                    <div class="px-4">
+                        <div class="flex justify-between items-end mb-6">
+                            <h2 class="text-xl font-black text-yellow-500">Cardápio</h2>
+                            <p class="text-[10px] text-gray-500">Editando Mesa ${state.currentMesa}</p>
+                        </div>
+                        ${state.products.map(p => {
+                            const qty = (state.orders[state.currentMesa] || {})[p.id] || 0;
+                            return `
+                                <div class="glass p-3 rounded-2xl mb-3 flex items-center gap-4 card-anim">
+                                    <div class="relative">
+                                        <img src="${p.img}" class="w-16 h-20 object-cover rounded-xl">
+                                        ${state.editMode ? `<button onclick="editImg(${p.id})" class="absolute inset-0 bg-black/60 rounded-xl flex items-center justify-center">📷</button>` : ''}
+                                    </div>
+                                    <div class="flex-1">
+                                        <h3 class="font-bold text-sm ${state.editMode ? 'bg-white/10 rounded px-1' : ''}" contenteditable="${state.editMode}" onblur="updateName(${p.id}, this.innerText)">${p.name}</h3>
+                                        <p class="text-yellow-500 font-black mt-1 ${state.editMode ? 'bg-white/10 rounded px-1' : ''}" contenteditable="${state.editMode}" onblur="updatePrice(${p.id}, this.innerText)">R$ ${p.price.toFixed(2)}</p>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        ${qty > 0 ? `<button onclick="changeQty(${p.id}, -1)" class="w-8 h-8 bg-white/10 rounded-full font-bold">-</button>` : ''}
+                                        ${qty > 0 ? `<span class="font-black text-yellow-500 w-4 text-center">${qty}</span>` : ''}
+                                        <button onclick="changeQty(${p.id}, 1)" class="w-8 h-8 bg-yellow-500 text-black rounded-full font-bold">+</button>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+
+                    <button onclick="openQR()" class="fixed bottom-6 right-6 w-14 h-14 bg-yellow-500 text-black rounded-full shadow-2xl flex items-center justify-center text-2xl z-50">📱</button>
                 </div>
             `;
         }
 
-        function renderProducts() {
-            return products.map(p => {
-                const qty = (orders[currentMesa] || {})[p.id] || 0;
-                return `
-                    <div class="glass p-3 rounded-2xl mb-3 flex items-center gap-4 transition-transform active:scale-95">
-                        <img src="${p.img}" class="w-16 h-20 object-cover rounded-xl shadow-lg">
-                        <div class="flex-1">
-                            <h3 class="font-bold text-sm ${editMode ? 'text-yellow-400 border-b border-dashed' : ''}" contenteditable="${editMode}" onblur="updateName(${p.id}, this.innerText)">${p.name}</h3>
-                            <p class="text-yellow-500 font-black mt-1 ${editMode ? 'text-yellow-200 border-b border-dashed' : ''}" contenteditable="${editMode}" onblur="updatePrice(${p.id}, this.innerText)">R$ ${p.price.toFixed(2)}</p>
+        // --- TELA DO CLIENTE ---
+        function renderCliente(container, mesaId) {
+            const mesaItems = state.orders[mesaId] || {};
+            const total = Object.entries(mesaItems).reduce((acc, [id, qty]) => {
+                const p = state.products.find(x => x.id == id);
+                return acc + (p ? p.price * qty : 0);
+            }, 0);
+
+            container.innerHTML = `
+                <div class="max-w-md mx-auto p-6 min-h-screen">
+                    <header class="text-center mb-10">
+                        <p class="bebas text-gray-400 tracking-widest text-lg">MESA ${String(mesaId).padStart(3, '0')}</p>
+                        <h1 class="bebas text-5xl mt-2 tracking-tighter">SUA COMANDA</h1>
+                        <div class="inline-flex items-center gap-2 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full mt-4">
+                            <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                            <span class="text-[10px] text-green-500 font-bold uppercase">Sincronizado</span>
                         </div>
-                        <div class="flex flex-col items-center gap-2">
-                            <button onclick="add(${p.id})" class="w-8 h-8 bg-yellow-500 text-black rounded-full font-black text-xl">+</button>
-                            ${qty > 0 ? `<span class="font-black text-yellow-500">${qty}</span>` : ''}
-                            ${qty > 0 ? `<button onclick="remove(${p.id})" class="w-8 h-8 bg-white/10 text-white rounded-full font-black text-xl">-</button>` : ''}
-                        </div>
+                    </header>
+
+                    <div class="glass rounded-3xl p-6 mb-8 min-h-[300px]">
+                        ${Object.keys(mesaItems).length === 0 ? `
+                            <div class="flex flex-col items-center justify-center h-64 text-gray-500">
+                                <div class="text-5xl mb-4">🛒</div>
+                                <p class="font-bold">Aguardando pedidos...</p>
+                            </div>
+                        ` : `
+                            <div class="space-y-4">
+                                ${Object.entries(mesaItems).map(([id, qty]) => {
+                                    const p = state.products.find(x => x.id == id);
+                                    return `
+                                        <div class="flex justify-between items-center border-b border-white/5 pb-3">
+                                            <div>
+                                                <p class="font-bold text-sm">${p.name}</p>
+                                                <p class="text-xs text-gray-400">${qty}x R$ ${p.price.toFixed(2)}</p>
+                                            </div>
+                                            <p class="font-black text-yellow-500">R$ ${(p.price * qty).toFixed(2)}</p>
+                                        </div>
+                                    `;
+                                }).join('')}
+                                <div class="pt-4 flex justify-between items-center text-xl font-black">
+                                    <span>TOTAL</span>
+                                    <span class="text-yellow-500 uppercase bebas text-3xl">R$ ${total.toFixed(2)}</span>
+                                </div>
+                            </div>
+                        `}
                     </div>
-                `;
-            }).join('');
+
+                    <button class="w-full bg-yellow-500 text-black bebas text-2xl py-4 rounded-2xl shadow-xl active:scale-95 transition-transform">
+                        Fazer Novo Pedido
+                    </button>
+                </div>
+            `;
         }
 
-        // --- LÓGICA DE NEGÓCIO ---
-        window.add = (id) => {
-            if (!orders[currentMesa]) orders[currentMesa] = {};
-            orders[currentMesa][id] = (orders[currentMesa][id] || 0) + 1;
-            saveAndRefresh();
+        // --- FUNÇÕES DE CONTROLE ---
+        window.changeQty = (id, delta) => {
+            if (!state.orders[state.currentMesa]) state.orders[state.currentMesa] = {};
+            let currentQty = state.orders[state.currentMesa][id] || 0;
+            let newQty = currentQty + delta;
+            
+            if (newQty <= 0) delete state.orders[state.currentMesa][id];
+            else state.orders[state.currentMesa][id] = newQty;
+            
+            save();
+        };
+
+        window.toggleEdit = () => { state.editMode = !state.editMode; render(); };
+        window.setMesa = (n) => { state.currentMesa = n; render(); };
+        window.updateName = (id, val) => { state.products.find(p => p.id == id).name = val; save(); };
+        window.updatePrice = (id, val) => { 
+            state.products.find(p => p.id == id).price = parseFloat(val.replace('R$', '').replace(',', '.')); 
+            save(); 
+        };
+        window.editImg = (id) => {
+            const url = prompt("Cole a URL da nova imagem:");
+            if (url) { state.products.find(p => p.id == id).img = url; save(); }
+        };
+
+        function save() {
+            localStorage.setItem('icebox_orders', JSON.stringify(state.orders));
+            localStorage.setItem('icebox_products', JSON.stringify(state.products));
+            render();
         }
 
-        window.remove = (id) => {
-            if (orders[currentMesa] && orders[currentMesa][id] > 0) {
-                orders[currentMesa][id] -= 1;
-                if (orders[currentMesa][id] === 0) delete orders[currentMesa][id];
+        window.openQR = () => {
+            const url = `${window.location.origin}${window.location.pathname}?mesa=${state.currentMesa}`;
+            const modal = document.createElement('div');
+            modal.className = "fixed inset-0 bg-black/95 z-[100] flex flex-col items-center justify-center p-6";
+            modal.innerHTML = `
+                <h2 class="bebas text-3xl mb-4">QR CODE MESA ${state.currentMesa}</h2>
+                <div id="qrcode-container" class="bg-white p-4 rounded-2xl mb-6"></div>
+                <p class="text-gray-500 text-[10px] mb-8">${url}</p>
+                <button onclick="this.parentElement.remove()" class="px-8 py-3 bg-white/10 rounded-full font-bold">FECHAR</button>
+            `;
+            document.body.appendChild(modal);
+            new QRCode(document.getElementById("qrcode-container"), { text: url, width: 200, height: 200 });
+        };
+
+        // Renderização Inicial
+        render();
+
+        // Auto-update para o cliente (simulado sem servidor)
+        setInterval(() => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('mesa')) {
+                state.orders = JSON.parse(localStorage.getItem('icebox_orders')) || {};
+                state.products = JSON.parse(localStorage.getItem('icebox_products')) || state.products;
+                render();
             }
-            saveAndRefresh();
-        }
+        }, 2000);
 
-        window.toggleEditMode = () => { editMode = !editMode; renderApp(); }
-
-        window.updatePrice = (id, val) => {
-            const p = products.find(x => x.id === id);
-            p.price = parseFloat(val.replace('R$', '').replace(',', '.'));
-            saveAndRefresh();
-        }
-
-        window.setMesa = (n) => { currentMesa = n; renderApp(); }
-
-        function saveAndRefresh() {
-            localStorage.setItem('icebox_orders', JSON.stringify(orders));
-            localStorage.setItem('icebox_products', JSON.stringify(products));
-            renderApp();
-        }
-
-        // Inicializar
-        renderApp();
     </script>
 </body>
 </html>
