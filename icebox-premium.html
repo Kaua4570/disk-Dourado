@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>Disk Dourado</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;700;800;900&display=swap" rel="stylesheet"/>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{--gold:#f5c842;--gold2:#f09000;}
+body{font-family:'Nunito',sans-serif;background:#080808;color:#fff;min-height:100dvh;overflow-x:hidden;-webkit-font-smoothing:antialiased;}
+::-webkit-scrollbar{width:0;}
+button{cursor:pointer;font-family:inherit;border:none;outline:none;background:none;}
+img{display:block;}
+
+/* ── BG ── */
+#bg-layer{position:fixed;inset:0;z-index:0;overflow:hidden;}
+#bg-img{position:absolute;inset:-6%;width:112%;height:112%;background-size:cover;background-position:center;filter:blur(12px);transform:scale(1.03);transition:filter .5s,transform .5s;}
+#bg-img.bl{filter:blur(30px)!important;transform:scale(1.08)!important;}
+#bg-img.fo{filter:blur(7px)!important;transform:scale(1.04)!important;}
+#bg-ov{position:absolute;inset:0;background:linear-gradient(160deg,rgba(0,0,0,.82) 0%,rgba(8,6,0,.94) 100%);}
+#bg-grain{position:absolute;inset:0;opacity:.03;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");background-size:180px;pointer-events:none;}
+
+/* ── APP ── */
+#app{position:relative;z-index:1;max-width:480px;margin:0 auto;min-height:100dvh;}
+
+/* ── COMANDA BAR ── */
+#cbar{position:sticky;top:0;z-index:50;background:rgba(0,0,0,.75);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-bottom:1px solid rgba(245,200,66,.12);padding:8px 12px 7px;}
+#clabel{font-size:9px;color:rgba(245,200,66,.5);letter-spacing:.16em;text-transform:uppercase;margin-bottom:6px;}
+#ctabs{display:flex;gap:5px;overflow-x:auto;padding-bottom:2px;}
+.ctab{flex-shrink:0;padding:5px 11px;border-radius:10px;font-size:11px;font-weight:800;cursor:pointer;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.09);color:rgba(255,255,255,.5);transition:all .2s;display:flex;align-items:center;gap:5px;}
+.ctab.on{background:rgba(245,200,66,.18);border-color:rgba(245,200,66,.55);color:#f5c842;}
+.cbadge{background:#f5c842;color:#000;border-radius:999px;padding:0 5px;font-size:9px;font-weight:900;display:none;}
+
+/* ── HEADER ── */
+#topbar{position:sticky;top:57px;z-index:40;display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:rgba(0,0,0,.5);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,.05);}
+.store-sub{font-size:9px;text-transform:uppercase;letter-spacing:.18em;color:rgba(245,200,66,.5);}
+#store-name{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:.05em;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:linear-gradient(90deg,#f5c842,#f09000);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+#hright{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+#synci{font-size:9px;color:#a3e635;display:none;animation:pulse 1s infinite;}
+#pill{padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(245,200,66,.15);border:1px solid rgba(245,200,66,.4);color:#f5c842;white-space:nowrap;}
+#gear{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:17px;transition:all .2s;}
+#gear.on{background:rgba(245,200,66,.2);border-color:#f5c842;}
+
+/* ── EDIT BANNER ── */
+#ebanner{display:none;background:rgba(245,200,66,.08);border:1px solid rgba(245,200,66,.25);border-radius:12px;margin:8px 14px;padding:8px 14px;font-size:12px;color:#f5c842;font-weight:700;}
+
+/* ── HERO ── */
+#hero{padding:12px 18px 5px;}
+#hsec{font-size:13px;font-weight:700;color:#f5c842;}
+#hinfo{font-size:11px;color:rgba(255,255,255,.38);margin-top:2px;}
+
+/* ── FINALIZAR ── */
+#fwrap{padding:6px 14px 0;display:none;}
+#fbtn{width:100%;padding:12px;border-radius:13px;background:linear-gradient(135deg,#f5c842,#f09000);color:#000;font-size:13px;font-weight:900;letter-spacing:.01em;box-shadow:0 6px 24px rgba(245,200,66,.3);}
+
+/* ── CONTENT ── */
+main{padding-bottom:120px;}
+.sec{padding:0 14px 24px;}
+.shdr{display:flex;align-items:center;gap:10px;padding:16px 0 5px;}
+.sll,.slr{height:1px;flex:1;opacity:.55;}
+.stitle{white-space:nowrap;font-size:14px;font-weight:900;color:#fff;letter-spacing:-.01em;}
+
+/* ── CARD ── */
+.card{display:flex;align-items:center;gap:13px;padding:11px;border-radius:18px;margin-bottom:10px;background:rgba(255,255,255,.04);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.07);box-shadow:0 4px 24px rgba(0,0,0,.35);transition:transform .18s,box-shadow .18s;animation:cardIn .4s ease both;}
+.card:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.5);}
+.card:active{transform:scale(.98);}
+
+/* product image */
+.cimg{width:66px;height:80px;border-radius:13px;overflow:hidden;flex-shrink:0;background:rgba(255,255,255,.06);position:relative;}
+.cimg img{width:100%;height:100%;object-fit:cover;display:block;}
+.cimg-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.08);border-radius:13px;font-size:9px;color:rgba(255,255,255,.3);text-align:center;padding:4px;font-weight:700;line-height:1.2;}
+.img-edit-btn{position:absolute;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;font-size:20px;cursor:pointer;border-radius:13px;}
+.emode .img-edit-btn{display:flex;}
+
+/* card info */
+.cinfo{flex:1;min-width:0;}
+.cname{font-size:13px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.01em;}
+.csub{font-size:10px;color:rgba(255,255,255,.4);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cprice{font-size:15px;font-weight:900;margin-top:4px;}
+
+/* qty controls */
+.cqty{display:flex;flex-direction:column;align-items:center;gap:5px;flex-shrink:0;}
+.bplus{width:36px;height:36px;border-radius:50%;font-size:22px;font-weight:900;display:flex;align-items:center;justify-content:center;transition:transform .15s,box-shadow .15s;box-shadow:0 3px 12px rgba(0,0,0,.4);}
+.bplus:active{transform:scale(.85);}
+.qnum{font-size:15px;font-weight:900;}
+.bminus{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.09);color:#fff;font-size:22px;font-weight:900;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.13);}
+.bminus:active{transform:scale(.85);}
+
+/* add product btn */
+.apbtn{width:100%;padding:10px;border-radius:14px;background:rgba(255,255,255,.03);font-size:13px;font-weight:700;display:none;align-items:center;justify-content:center;gap:6px;margin-top:5px;border:1px dashed;}
+.emode .apbtn{display:flex;}
+
+/* ── BOTTOM NAV ── */
+#botnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:rgba(0,0,0,.82);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);border-top:1px solid rgba(245,200,66,.1);display:flex;z-index:30;}
+.nitem{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 2px;gap:2px;border-top:2px solid transparent;transition:all .2s;border-bottom:none;border-left:none;border-right:none;}
+.ne{font-size:18px;}.nl{font-size:9px;font-weight:800;color:rgba(255,255,255,.35);letter-spacing:.02em;}
+
+/* ── QR FLOAT ── */
+#qrfloat{position:fixed;bottom:82px;right:calc(50% - 228px);width:50px;height:50px;border-radius:50%;background:rgba(245,200,66,.15);backdrop-filter:blur(12px);border:1.5px solid rgba(245,200,66,.35);display:flex;align-items:center;justify-content:center;font-size:22px;z-index:35;box-shadow:0 4px 20px rgba(245,200,66,.2);}
+
+/* ── MODALS ── */
+.mbkg{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;padding:20px;}
+.mbkg.on{display:flex;}
+.mbox{background:rgba(10,9,0,.98);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border:1px solid rgba(245,200,66,.15);border-radius:24px;padding:24px;max-width:340px;width:100%;max-height:88dvh;overflow-y:auto;animation:mIn .3s cubic-bezier(.34,1.2,.64,1);}
+.mtitle{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:.05em;margin-bottom:4px;background:linear-gradient(90deg,#f5c842,#f09000);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.msub{font-size:12px;color:rgba(255,255,255,.4);margin-bottom:16px;}
+.mbrow{display:flex;gap:10px;margin-top:16px;}
+.mb{flex:1;padding:12px 14px;border-radius:13px;font-size:13px;font-weight:800;cursor:pointer;border:none;font-family:'Nunito',sans-serif;transition:transform .15s;}
+.mb:active{transform:scale(.96);}
+.mb.ac{background:linear-gradient(135deg,#f5c842,#f09000);color:#000;}
+.mb.gh{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);color:#fff;}
+.mb.fw{flex:none;width:100%;}
+.csr{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:13px;}
+.cstot{display:flex;justify-content:space-between;padding:10px 0 0;font-size:17px;font-weight:900;}
+.fg{display:flex;flex-direction:column;gap:4px;margin-bottom:11px;}
+.fl{font-size:10px;color:rgba(245,200,66,.6);text-transform:uppercase;letter-spacing:.12em;}
+.fi{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:10px;color:#fff;padding:10px 11px;font-family:'Nunito',sans-serif;font-size:14px;outline:none;width:100%;}
+.fi:focus{border-color:#f5c842;}
+
+/* ── CLIENT VIEW ── */
+#cview{display:none;}#cview.on{display:block;}#aview.hide{display:none;}
+.chdr{position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;padding:13px 18px;background:rgba(0,0,0,.55);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid rgba(245,200,66,.1);}
+.ldot{width:7px;height:7px;border-radius:50%;background:#86efac;animation:pulse 1.5s infinite;flex-shrink:0;}
+.emptyst{text-align:center;padding:40px 20px;background:rgba(255,255,255,.03);border-radius:20px;border:1px dashed rgba(255,255,255,.08);}
+.totbar{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;margin-top:5px;background:linear-gradient(135deg,rgba(245,200,66,.1),rgba(240,144,0,.08));border:1px solid rgba(245,200,66,.25);border-radius:16px;}
+
+/* cardápio overlay */
+#cardover{position:fixed;inset:0;z-index:55;background:#080808;overflow-y:auto;display:none;}
+#cardover.on{display:block;animation:fadeUp .3s ease;}
+#cardhdr{position:sticky;top:0;z-index:5;background:rgba(0,0,0,.7);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid rgba(245,200,66,.1);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;}
+#cardnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:rgba(0,0,0,.82);backdrop-filter:blur(24px);border-top:1px solid rgba(245,200,66,.1);display:flex;z-index:30;}
+
+/* ── LOADING ── */
+#lscreen{position:fixed;inset:0;z-index:100;background:#080808;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;}
+#lscreen.hide{display:none;}
+.spin{width:40px;height:40px;border:3px solid rgba(245,200,66,.15);border-top:3px solid #f5c842;border-radius:50%;animation:spin .8s linear infinite;}
+#lname{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:.08em;background:linear-gradient(90deg,#f5c842,#f09000);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+
+/* ── ANIMATIONS ── */
+@keyframes cardIn{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes mIn{from{opacity:0;transform:scale(.92) translateY(20px);}to{opacity:1;transform:scale(1) translateY(0);}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(22px);}to{opacity:1;transform:translateY(0);}}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="lscreen">
+  <div class="spin"></div>
+  <div id="lname">Disk Dourado</div>
+  <div style="font-size:11px;color:rgba(255,255,255,.35);letter-spacing:.1em;">Conectando...</div>
+</div>
+
+<!-- BG -->
+<div id="bg-layer">
+  <div id="bg-img"></div>
+  <div id="bg-ov"></div>
+  <div id="bg-grain"></div>
+</div>
+
+<div id="app">
+
+  <!-- ═══════════ ADMIN ═══════════ -->
+  <div id="aview">
+    <div id="cbar">
+      <div id="clabel">Comandas</div>
+      <div id="ctabs"></div>
+    </div>
+    <div id="topbar">
+      <div style="min-width:0;flex:1;">
+        <div class="store-sub">Distribuidora</div>
+        <div id="store-name">Disk Dourado</div>
+      </div>
+      <div id="hright">
+        <span id="synci">↑</span>
+        <div id="pill">— —</div>
+        <button id="gear" onclick="toggleEdit()">⚙️</button>
+      </div>
+    </div>
+    <div id="ebanner">✏️ Modo Edição — toque no card para editar · 📷 toque na foto</div>
+    <div id="hero"><div id="hsec">—</div><div id="hinfo">Comanda 001 · vazia</div></div>
+    <div id="fwrap"><button id="fbtn" onclick="openFinal()">✅ Finalizar</button></div>
+    <main id="mc"></main>
+    <nav id="botnav"></nav>
+    <button id="qrfloat" onclick="openQR()">📱</button>
+  </div>
+
+  <!-- ═══════════ CLIENT ═══════════ -->
+  <div id="cview">
+    <header class="chdr">
+      <div style="min-width:0;">
+        <div class="store-sub" style="color:rgba(245,200,66,.5);">Distribuidora</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:.04em;white-space:nowrap;background:linear-gradient(90deg,#f5c842,#f09000);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;" id="ctitle">Mesa 001</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+        <div class="ldot"></div>
+        <span style="font-size:10px;color:rgba(255,255,255,.4);">tempo real</span>
+      </div>
+    </header>
+    <div id="cbody" style="padding:20px 14px;"></div>
+
+    <!-- Cardápio overlay -->
+    <div id="cardover">
+      <div id="cardhdr">
+        <div id="cardsecname" style="font-size:11px;font-weight:800;color:#f5c842;">—</div>
+        <button onclick="closeCard()" style="padding:6px 14px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#fff;font-size:12px;font-weight:700;cursor:pointer;">← Voltar</button>
+      </div>
+      <main id="cardcontent" style="padding-bottom:90px;"></main>
+      <nav id="cardnav"></nav>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL QR ═══ -->
+<div id="qrm" class="mbkg" onclick="if(event.target===this)cm('qrm')">
+  <div class="mbox" style="text-align:center;">
+    <div class="mtitle">QR Code</div>
+    <div class="msub" id="qrsub"></div>
+    <img id="qrimg" width="160" height="160" style="border-radius:10px;margin:0 auto 14px;display:block;"/>
+    <div id="qrurl" style="background:rgba(255,255,255,.04);border-radius:10px;padding:7px 10px;font-size:9px;color:rgba(255,255,255,.3);word-break:break-all;margin-bottom:16px;text-align:left;"></div>
+    <div id="qrsum"></div>
+    <button class="mb gh fw" onclick="cm('qrm')" style="margin-top:12px;">Fechar</button>
+  </div>
+</div>
+
+<!-- ═══ MODAL FINALIZAR ═══ -->
+<div id="fim" class="mbkg" onclick="if(event.target===this)cm('fim')">
+  <div class="mbox" style="text-align:center;">
+    <div style="font-size:48px;margin-bottom:8px;">🧾</div>
+    <div class="mtitle">Fechar Comanda</div>
+    <div class="msub" id="fisub"></div>
+    <div id="fisum"></div>
+    <div class="mbrow">
+      <button class="mb gh" onclick="cm('fim')">Cancelar</button>
+      <button class="mb ac" onclick="confFinal()">✅ Confirmar e Zerar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL EDITAR PRODUTO ═══ -->
+<div id="editm" class="mbkg" onclick="if(event.target===this)cm('editm')">
+  <div class="mbox">
+    <div class="mtitle">Editar Produto</div>
+    <div class="msub">Altere os campos e salve</div>
+    <input type="hidden" id="epkey"/>
+    <div class="fg"><label class="fl">Nome</label><input class="fi" id="ename"/></div>
+    <div class="fg"><label class="fl">Categoria</label><input class="fi" id="ecat" placeholder="Ex: Cervejas"/></div>
+    <div class="fg"><label class="fl">Descrição</label><input class="fi" id="edesc"/></div>
+    <div class="fg"><label class="fl">Preço</label><input class="fi" id="eprice" style="color:#f5c842;font-weight:700;"/></div>
+    <div class="fg">
+      <label class="fl">Foto</label>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:7px;">
+        <div id="eprev-wrap" style="width:60px;height:60px;border-radius:12px;overflow:hidden;flex-shrink:0;background:rgba(255,255,255,.07);">
+          <img id="eprev" style="width:100%;height:100%;object-fit:cover;display:none;"/>
+        </div>
+        <label style="flex:1;padding:11px;border-radius:11px;background:rgba(255,255,255,.06);border:1px dashed rgba(245,200,66,.25);color:rgba(255,255,255,.5);font-size:12px;cursor:pointer;text-align:center;display:block;">
+          📷 Selecionar foto<input type="file" accept="image/*" style="display:none;" onchange="eImgFile(event)"/>
+        </label>
+      </div>
+      <input class="fi" id="eurl" placeholder="ou cole URL da imagem" style="font-size:11px;"/>
+    </div>
+    <div class="mbrow">
+      <button class="mb gh" onclick="cm('editm')">Cancelar</button>
+      <button class="mb ac" onclick="confEdit()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL NOVO PRODUTO ═══ -->
+<div id="addm" class="mbkg" onclick="if(event.target===this)cm('addm')">
+  <div class="mbox">
+    <div class="mtitle">Novo Produto</div>
+    <input type="hidden" id="acat"/>
+    <div class="fg"><label class="fl">Nome *</label><input class="fi" id="aname" placeholder="Ex: Heineken Original"/></div>
+    <div class="fg"><label class="fl">Descrição</label><input class="fi" id="adesc" placeholder="Ex: Long Neck 330ml · Pilsen"/></div>
+    <div class="fg"><label class="fl">Preço *</label><input class="fi" id="aprice" placeholder="R$ 8,00" style="color:#f5c842;font-weight:700;"/></div>
+    <div class="fg">
+      <label class="fl">Foto</label>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:7px;">
+        <img id="aprev" style="width:52px;height:52px;border-radius:10px;object-fit:cover;display:none;flex-shrink:0;"/>
+        <label style="flex:1;padding:10px;border-radius:11px;background:rgba(255,255,255,.06);border:1px dashed rgba(245,200,66,.25);color:rgba(255,255,255,.5);font-size:12px;cursor:pointer;text-align:center;display:block;">
+          📷 Selecionar foto<input type="file" accept="image/*" style="display:none;" onchange="aImgFile(event)"/>
+        </label>
+      </div>
+      <input class="fi" id="aurl" placeholder="ou cole URL da imagem" style="font-size:11px;"/>
+    </div>
+    <div class="mbrow">
+      <button class="mb gh" onclick="cm('addm')">Cancelar</button>
+      <button class="mb ac" onclick="confAdd()">➕ Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL CONFIG LOJA ═══ -->
+<div id="cfgm" class="mbkg" onclick="if(event.target===this)cm('cfgm')">
+  <div class="mbox">
+    <div class="mtitle">Configurações</div>
+    <div class="fg"><label class="fl">Nome da Loja</label><input class="fi" id="cfg-nome" placeholder="Disk Dourado"/></div>
+    <div class="fg"><label class="fl">Nova Categoria</label>
+      <div style="display:flex;gap:8px;">
+        <input class="fi" id="cfg-cat" placeholder="Ex: Cervejas" style="flex:1;"/>
+        <input class="fi" id="cfg-cat-emoji" placeholder="🍺" style="width:60px;text-align:center;"/>
+      </div>
+    </div>
+    <div class="mbrow">
+      <button class="mb gh" onclick="cm('cfgm')">Fechar</button>
+      <button class="mb ac" onclick="confCfg()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  FIREBASE
+// ═══════════════════════════════════════════
+firebase.initializeApp({
+  databaseURL: "https://disk-dourado2-default-rtdb.firebaseio.com"
+});
+const db      = firebase.database();
+const refCfg  = db.ref('config');
+const refProd = db.ref('produtos');
+const refCom  = db.ref('comandas');
+
+// ═══════════════════════════════════════════
+//  DADOS PADRÃO
+// ═══════════════════════════════════════════
+const CAT_BG = {
+  'Cervejas':    {bg:'https://images.unsplash.com/photo-1608270586620-248524c67de9?w=1400&q=80', accent:'#f5c842', emoji:'🍺'},
+  'Ices':        {bg:'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=1400&q=80', accent:'#38bdf8', emoji:'🧊'},
+  'Energéticos': {bg:'https://images.unsplash.com/photo-1598343175492-9e7dc62f2a3a?w=1400&q=80', accent:'#a3e635', emoji:'⚡'},
+  'Refrigerantes':{bg:'https://images.unsplash.com/photo-1581636625402-29b2a704ef13?w=1400&q=80',accent:'#f87171', emoji:'🥤'},
+  'Sucos':       {bg:'https://images.unsplash.com/photo-1622597467836-f3e6a0b3e748?w=1400&q=80', accent:'#fb923c', emoji:'🍊'},
+  'Hidratação':  {bg:'https://images.unsplash.com/photo-1559839914-17aae19cec71?w=1400&q=80',  accent:'#67e8f9', emoji:'💧'},
+};
+const DEF_BG     = 'https://images.unsplash.com/photo-1608270586620-248524c67de9?w=1400&q=80';
+const DEF_ACCENT = '#f5c842';
+
+const PROD_PADRAO = [
+  {nome:'Heineken 0.0',   descricao:'Long Neck 330ml · Sem Álcool', preco:'R$ 8,00',  categoria:'Cervejas',    url_imagem:'https://images.unsplash.com/photo-1618183479302-1e0aa382c36b?w=300&q=80'},
+  {nome:'Brahma',         descricao:'Long Neck 350ml · Pilsen',     preco:'R$ 6,50',  categoria:'Cervejas',    url_imagem:'https://images.unsplash.com/photo-1535958636474-b021ee887b13?w=300&q=80'},
+  {nome:'Antarctica',     descricao:'Long Neck 350ml · Pilsen',     preco:'R$ 6,00',  categoria:'Cervejas',    url_imagem:'https://images.unsplash.com/photo-1566633806827-5e590a3f3da0?w=300&q=80'},
+  {nome:'51 Ice Limão',   descricao:'Long Neck 275ml · Cítrico',    preco:'R$ 9,00',  categoria:'Ices',        url_imagem:'https://images.unsplash.com/photo-1571950006418-f4563e22053b?w=300&q=80'},
+  {nome:'51 Ice Maracujá',descricao:'Long Neck 275ml · Tropical',   preco:'R$ 9,00',  categoria:'Ices',        url_imagem:'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&q=80'},
+  {nome:'51 Ice Morango', descricao:'Long Neck 275ml · Frutal',     preco:'R$ 9,00',  categoria:'Ices',        url_imagem:'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=300&q=80'},
+  {nome:'Schweppes Mixed',descricao:'Lata 350ml · Tônica e Vodka',  preco:'R$ 11,00', categoria:'Ices',        url_imagem:'https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=300&q=80'},
+  {nome:'Monster Original',descricao:'Lata 473ml · Clássico',       preco:'R$ 14,00', categoria:'Energéticos', url_imagem:'https://images.unsplash.com/photo-1622543925917-763c34d1a86e?w=300&q=80'},
+  {nome:'Monster Mango',  descricao:'Lata 473ml · Manga Tropical',  preco:'R$ 14,00', categoria:'Energéticos', url_imagem:'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&q=80'},
+  {nome:'Monster Ultra',  descricao:'Lata 473ml · Zero Açúcar',     preco:'R$ 14,00', categoria:'Energéticos', url_imagem:'https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=300&q=80'},
+  {nome:'Coca-Cola',      descricao:'Lata 350ml · Original',        preco:'R$ 5,50',  categoria:'Refrigerantes',url_imagem:'https://images.unsplash.com/photo-1554866585-cd94860890b7?w=300&q=80'},
+  {nome:'Guaraná Mineiro',descricao:'Lata 350ml · Regional',        preco:'R$ 4,50',  categoria:'Refrigerantes',url_imagem:'https://images.unsplash.com/photo-1625772452859-1c03d884dcd7?w=300&q=80'},
+  {nome:'Suco de Laranja',descricao:'Garrafa 500ml · Natural',      preco:'R$ 7,00',  categoria:'Sucos',       url_imagem:'https://images.unsplash.com/photo-1534353436294-0dbd4bdac845?w=300&q=80'},
+  {nome:'H2OH! Limão',    descricao:'Garrafa 500ml · Refrescante',  preco:'R$ 5,00',  categoria:'Hidratação',  url_imagem:'https://images.unsplash.com/photo-1559839914-17aae19cec71?w=300&q=80'},
+  {nome:'Água Mineral',   descricao:'Garrafa 500ml · Sem Gás',      preco:'R$ 3,00',  categoria:'Hidratação',  url_imagem:'https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=300&q=80'},
+];
+
+// ═══════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════
+let produtos     = {};  // { firebaseKey: { nome, descricao, preco, categoria, url_imagem } }
+let comandas     = {};  // { '1': { firebaseKey: qty, ... }, ... }
+let categorias   = [];  // lista de strings únicas
+let config       = { nome_loja: 'Disk Dourado', categorias_extra: {} };
+let sel          = 1;
+let actCat       = '';
+let emode        = false;
+let curBg        = '';
+let bgT          = [];
+
+const $   = id => document.getElementById(id);
+const toF = s  => parseFloat((s||'0').replace('R$','').replace(',','.').trim())||0;
+
+// ── getter helpers ──────────────────────────
+function getProdsBycat(cat) {
+  return Object.entries(produtos)
+    .filter(([,p]) => p.categoria === cat)
+    .map(([k,p]) => ({key:k,...p}));
+}
+function getCatInfo(cat) {
+  return CAT_BG[cat] || (config.categorias_extra && config.categorias_extra[cat]) || {bg:DEF_BG,accent:DEF_ACCENT,emoji:'🛒'};
+}
+function getComandaItems(mesa) {
+  return Object.entries(comandas[mesa]||{})
+    .filter(([,qty])=>qty>0)
+    .map(([key,qty])=>({key,qty,...(produtos[key]||{})}));
+}
+function comandaCount(mesa) {
+  return Object.values(comandas[mesa]||{}).filter(q=>q>0).reduce((s,q)=>s+q,0);
+}
+function comandaTotal(mesa) {
+  return Object.entries(comandas[mesa]||{}).reduce((sum,[key,qty])=>{
+    const p=produtos[key]; return sum+(p?toF(p.preco)*qty:0);
+  },0);
+}
+function getQty(key) {
+  return (comandas[sel]&&comandas[sel][key])||0;
+}
+
+// ── sync indicator ──────────────────────────
+const sy = on => { $('synci').style.display=on?'block':'none'; };
+
+// ── background ──────────────────────────────
+function trBg(u) {
+  if(u===curBg)return;bgT.forEach(clearTimeout);bgT=[];
+  const el=$('bg-img');el.classList.remove('fo');el.classList.add('bl');
+  bgT.push(setTimeout(()=>{curBg=u;el.style.backgroundImage=`url('${u}')`;el.classList.remove('bl');el.classList.add('fo');},450));
+  bgT.push(setTimeout(()=>el.classList.remove('fo'),950));
+}
+
+// ═══════════════════════════════════════════
+//  INCR / DECR — atualiza Firebase diretamente
+// ═══════════════════════════════════════════
+function incr(key) {
+  const cur = getQty(key);
+  sy(true);
+  refCom.child(`${sel}/${key}`).set(cur+1).then(()=>sy(false));
+}
+function decr(key) {
+  const cur = getQty(key);
+  if(cur<=0)return;
+  sy(true);
+  const next = cur-1;
+  refCom.child(`${sel}/${key}`).set(next>0?next:null).then(()=>sy(false));
+}
+
+// ═══════════════════════════════════════════
+//  EDIT MODE
+// ═══════════════════════════════════════════
+function toggleEdit() {
+  emode=!emode;
+  $('gear').classList.toggle('on',emode);
+  $('ebanner').style.display=emode?'block':'none';
+  $('mc').classList.toggle('emode',emode);
+}
+
+// ── open edit modal ──────────────────────────
+function openEditModal(key) {
+  if(!emode)return;
+  const p=produtos[key];if(!p)return;
+  $('epkey').value=key;
+  $('ename').value=p.nome||'';
+  $('ecat').value=p.categoria||'';
+  $('edesc').value=p.descricao||'';
+  $('eprice').value=p.preco||'';
+  $('eurl').value=(p.url_imagem&&!p.url_imagem.startsWith('data:'))?p.url_imagem:'';
+  $('eurl').dataset.b64='';
+  if(p.url_imagem){$('eprev').src=p.url_imagem;$('eprev').style.display='block';}
+  else $('eprev').style.display='none';
+  om('editm');
+}
+function eImgFile(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{$('eprev').src=ev.target.result;$('eprev').style.display='block';$('eurl').dataset.b64=ev.target.result;$('eurl').value='';};
+  r.readAsDataURL(f);
+}
+function confEdit(){
+  const key=$('epkey').value;
+  const uf=$('eurl'),img=uf.dataset.b64||uf.value.trim()||null;
+  const update={
+    nome:$('ename').value.trim()||produtos[key]?.nome,
+    categoria:$('ecat').value.trim()||produtos[key]?.categoria,
+    descricao:$('edesc').value.trim()||produtos[key]?.descricao||'',
+    preco:$('eprice').value.trim()||produtos[key]?.preco,
+    url_imagem:img||produtos[key]?.url_imagem||'',
+  };
+  sy(true);refProd.child(key).update(update).then(()=>sy(false));
+  cm('editm');
+}
+
+// ── add product ──────────────────────────────
+function openAddM(cat) {
+  $('acat').value=cat;
+  ['aname','adesc','aprice','aurl'].forEach(i=>$(i).value='');
+  $('aprev').style.display='none';$('aurl').dataset.b64='';
+  om('addm');
+}
+function aImgFile(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{$('aprev').src=ev.target.result;$('aprev').style.display='block';$('aurl').dataset.b64=ev.target.result;};
+  r.readAsDataURL(f);
+}
+function confAdd(){
+  const nome=$('aname').value.trim();
+  if(!nome){alert('Digite o nome do produto');return;}
+  const uf=$('aurl'),img=uf.dataset.b64||uf.value.trim()||'';
+  uf.dataset.b64='';
+  const p={nome,descricao:$('adesc').value.trim(),preco:$('aprice').value.trim()||'R$ 0,00',categoria:$('acat').value,url_imagem:img};
+  sy(true);refProd.push(p).then(()=>sy(false));
+  cm('addm');
+}
+
+// ── img direto no card ───────────────────────
+function imgDir(key,file){
+  if(!file)return;
+  const r=new FileReader();
+  r.onload=ev=>{sy(true);refProd.child(key).update({url_imagem:ev.target.result}).then(()=>sy(false));};
+  r.readAsDataURL(file);
+}
+
+// ── config loja ──────────────────────────────
+function openCfg(){
+  $('cfg-nome').value=config.nome_loja||'';
+  $('cfg-cat').value='';$('cfg-cat-emoji').value='';
+  om('cfgm');
+}
+function confCfg(){
+  const nome=$('cfg-nome').value.trim();
+  const cat=$('cfg-cat').value.trim();
+  const emoji=$('cfg-cat-emoji').value.trim()||'🛒';
+  const updates={};
+  if(nome)updates['nome_loja']=nome;
+  if(cat)updates[`categorias_extra/${cat}`]={bg:DEF_BG,accent:DEF_ACCENT,emoji};
+  sy(true);refCfg.update(updates).then(()=>sy(false));
+  cm('cfgm');
+}
+
+// ── modals ──────────────────────────────────
+function om(id){$(id).classList.add('on');}
+function cm(id){$(id).classList.remove('on');}
+
+// ── QR ──────────────────────────────────────
+function openQR(){
+  const url=`${location.origin}${location.pathname}?mesa=${sel}`;
+  $('qrsub').textContent=`Comanda ${String(sel).padStart(3,'0')}`;
+  $('qrimg').src=`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(url)}&bgcolor=0a0900&color=f5c842`;
+  $('qrurl').textContent=url;
+  const items=getComandaItems(sel);
+  $('qrsum').innerHTML=items.length>0?sumHTML(items,false):'<p style="color:rgba(255,255,255,.3);font-size:12px;text-align:center;">Comanda vazia</p>';
+  om('qrm');
+}
+
+// ── finalizar ───────────────────────────────
+function openFinal(){
+  $('fisub').textContent=`Comanda ${String(sel).padStart(3,'0')}`;
+  $('fisum').innerHTML=sumHTML(getComandaItems(sel),true);om('fim');
+}
+function confFinal(){
+  sy(true);refCom.child(String(sel)).set(null).then(()=>sy(false));cm('fim');
+}
+
+// ── summary html ────────────────────────────
+function sumHTML(items,showTot){
+  let t=0;
+  let h='<div style="font-size:10px;color:rgba(245,200,66,.5);text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px;">Itens</div>';
+  items.forEach(item=>{
+    const v=toF(item.preco)*item.qty;t+=v;
+    const acc=getCatInfo(item.categoria).accent;
+    h+=`<div class="csr"><span>${item.nome||'?'} <span style="color:rgba(255,255,255,.3)">×${item.qty}</span></span><span style="color:${acc};font-weight:700">R$ ${v.toFixed(2).replace('.',',')}</span></div>`;
+  });
+  if(showTot)h+=`<div class="cstot"><span>Total</span><span style="color:#f5c842">R$ ${t.toFixed(2).replace('.',',')}</span></div>`;
+  return h;
+}
+
+// ═══════════════════════════════════════════
+//  RENDER ADMIN
+// ═══════════════════════════════════════════
+function buildCatList(){
+  const fromProd=[...new Set(Object.values(produtos).map(p=>p.categoria).filter(Boolean))];
+  const fromCfg=Object.keys(config.categorias_extra||{});
+  const all=[...new Set([...fromProd,...fromCfg])];
+  categorias=all.length?all:Object.keys(CAT_BG);
+}
+
+function setActCat(cat){
+  if(cat===actCat)return;actCat=cat;
+  const info=getCatInfo(cat);
+  $('pill').textContent=`${info.emoji} ${cat}`;
+  $('pill').style.cssText+=`;background:${info.accent}22;border-color:${info.accent}55;color:${info.accent}`;
+  $('hsec').textContent=`${info.emoji} ${cat}`;
+  $('hsec').style.color=info.accent;
+  document.querySelectorAll('.nitem').forEach(el=>{
+    const a=el.dataset.cat===cat;el.classList.toggle('on',a);
+    const ac=getCatInfo(cat).accent;
+    el.style.background=a?ac+'22':'';el.style.borderTopColor=a?ac:'transparent';
+    el.querySelector('.nl').style.color=a?ac:'';
+  });
+  trBg(info.bg);upHero();
+}
+
+function upHero(){
+  const n=comandaCount(sel),t=comandaTotal(sel);
+  $('hinfo').innerHTML=`Comanda <strong style="color:#fff">${String(sel).padStart(3,'0')}</strong>`+(n>0?` · ${n} iten${n>1?'s':''} · R$ ${t.toFixed(2).replace('.',',')}`:'· vazia');
+}
+
+function upTabs(){
+  const info=getCatInfo(actCat);
+  document.querySelectorAll('.ctab').forEach(tab=>{
+    const n=parseInt(tab.dataset.n),a=n===sel,cnt=comandaCount(n);
+    tab.classList.toggle('on',a);
+    tab.style.background=a?info.accent+'22':'';
+    tab.style.borderColor=a?info.accent+'55':'';
+    tab.style.color=a?info.accent:'';
+    const b=tab.querySelector('.cbadge');b.style.display=cnt>0?'inline':'none';
+    if(cnt>0){b.textContent=cnt;b.style.background=a?info.accent:'#f5c842';}
+  });
+}
+
+function upFin(){
+  const n=comandaCount(sel);$('fwrap').style.display=n>0?'block':'none';
+  if(n>0)$('fbtn').textContent=`✅ Finalizar Comanda ${String(sel).padStart(3,'0')} · R$ ${comandaTotal(sel).toFixed(2).replace('.',',')}`;
+}
+
+function upCardQty(key){
+  const q=getQty(key);
+  const n=document.querySelector(`.qnum[data-k="${key}"]`);
+  const m=document.querySelector(`.bminus[data-k="${key}"]`);
+  if(n){n.textContent=q;n.style.display=q>0?'block':'none';}
+  if(m)m.style.display=q>0?'flex':'none';
+}
+
+function renderAdmin(){
+  buildCatList();
+
+  // nome da loja
+  const nome=config.nome_loja||'Disk Dourado';
+  $('store-name').textContent=nome;
+  document.title=nome;$('lname').textContent=nome;
+
+  // comanda tabs
+  const tabs=$('ctabs');tabs.innerHTML='';
+  for(let n=1;n<=10;n++){
+    const t=document.createElement('button');t.className='ctab'+(n===sel?' on':'');t.dataset.n=n;
+    t.innerHTML=`${String(n).padStart(3,'0')}<span class="cbadge"></span>`;
+    t.onclick=()=>{sel=n;upTabs();upHero();upFin();};tabs.appendChild(t);
+  }
+
+  // main content
+  const mc=$('mc');mc.innerHTML='';
+  if(emode)mc.classList.add('emode');else mc.classList.remove('emode');
+
+  categorias.forEach(cat=>{
+    const prods=getProdsBycat(cat);
+    const info=getCatInfo(cat);
+    const w=document.createElement('div');w.className='sec';w.dataset.section=cat;
+    w.innerHTML=`<div class="shdr">
+      <div class="sll" style="background:linear-gradient(to right,${info.accent}88,transparent)"></div>
+      <h2 class="stitle">${info.emoji} ${cat}</h2>
+      <div class="slr" style="background:linear-gradient(to left,${info.accent}88,transparent)"></div>
+    </div>`;
+
+    prods.forEach((p,pi)=>{
+      const q=getQty(p.key);
+      const c=document.createElement('div');c.className='card';c.style.animationDelay=pi*40+'ms';
+      c.innerHTML=`
+        <div class="cimg">
+          ${p.url_imagem
+            ? `<img src="${p.url_imagem}" alt="${p.nome}" loading="lazy" onerror="this.style.display='none';this.nextSibling.style.display='flex'"/>
+               <div class="cimg-placeholder" style="display:none">${p.nome}</div>`
+            : `<div class="cimg-placeholder">${p.nome}</div>`}
+          <label class="img-edit-btn" title="Trocar foto">📷<input type="file" accept="image/*" style="display:none" onchange="imgDir('${p.key}',this.files[0])"/></label>
+        </div>
+        <div class="cinfo" onclick="openEditModal('${p.key}')" style="cursor:pointer;flex:1;min-width:0;">
+          <div class="cname">${p.nome}</div>
+          <div class="csub">${p.descricao||''}</div>
+          <div class="cprice" style="color:${info.accent}">${p.preco}</div>
+        </div>
+        <div class="cqty">
+          <button class="bplus" style="background:${info.accent};color:#000;box-shadow:0 3px 12px ${info.accent}44" onclick="incr('${p.key}')">+</button>
+          <span class="qnum" data-k="${p.key}" style="color:${info.accent};display:${q>0?'block':'none'}">${q}</span>
+          <button class="bminus" data-k="${p.key}" onclick="decr('${p.key}')" style="display:${q>0?'flex':'none'}">−</button>
+        </div>`;
+      w.appendChild(c);
+    });
+
+    // add product btn
+    const ab=document.createElement('button');ab.className='apbtn';
+    ab.style.borderColor=info.accent+'44';ab.style.color=info.accent;
+    ab.innerHTML=`➕ Adicionar produto em ${cat}`;ab.onclick=()=>openAddM(cat);
+    w.appendChild(ab);
+
+    mc.appendChild(w);
+  });
+
+  // bottom nav — dinâmico por categorias
+  const nav=$('botnav');nav.innerHTML='';
+
+  // add config gear btn in nav
+  const cfgBtn=document.createElement('button');cfgBtn.className='nitem';
+  cfgBtn.innerHTML=`<span class="ne">⚙️</span><span class="nl">Config</span>`;
+  cfgBtn.onclick=openCfg;
+
+  categorias.forEach(cat=>{
+    const info=getCatInfo(cat);
+    const b=document.createElement('button');b.className='nitem';b.dataset.cat=cat;
+    b.innerHTML=`<span class="ne">${info.emoji}</span><span class="nl">${cat.substring(0,5)}</span>`;
+    b.onclick=()=>document.querySelector(`[data-section="${cat}"]`)?.scrollIntoView({behavior:'smooth',block:'start'});
+    nav.appendChild(b);
+  });
+  nav.appendChild(cfgBtn);
+
+  // intersection observer
+  const obs=new IntersectionObserver(entries=>{
+    entries.forEach(e=>{if(e.isIntersecting)setActCat(e.target.dataset.section);});
+  },{threshold:0.2,rootMargin:'-70px 0px -40% 0px'});
+  document.querySelectorAll('[data-section]').forEach(el=>obs.observe(el));
+
+  if(categorias.length>0&&!actCat){
+    setActCat(categorias[0]);
+    trBg(getCatInfo(categorias[0]).bg);
+  }
+  upTabs();upHero();upFin();
+}
+
+// ═══════════════════════════════════════════
+//  RENDER CLIENT
+// ═══════════════════════════════════════════
+let cmesa=null;
+
+function renderClient(){
+  const items=getComandaItems(cmesa);
+  const nomeLoja=config.nome_loja||'Disk Dourado';
+  $('ctitle').textContent=`Mesa ${String(cmesa).padStart(3,'0')}`;
+
+  let h=`<div style="text-align:center;margin-bottom:24px;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:.14em;color:rgba(245,200,66,.5);margin-bottom:4px;">${nomeLoja}</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:.06em;">Sua Comanda</div>
+    <div style="font-size:12px;color:rgba(255,255,255,.35);margin-top:3px;">Mesa ${String(cmesa).padStart(3,'0')} · tempo real 🔥</div>
+    <div style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:5px 13px;border-radius:999px;background:rgba(134,239,172,.08);border:1px solid rgba(134,239,172,.2);font-size:11px;color:#86efac;">
+      <span style="width:6px;height:6px;border-radius:50%;background:#86efac;animation:pulse 1.5s infinite;flex-shrink:0;display:inline-block;"></span>Sincronizado em tempo real
+    </div>
+  </div>`;
+
+  if(!items.length){
+    h+=`<div class="emptyst">
+      <div style="font-size:48px;margin-bottom:12px;">🛒</div>
+      <div style="font-size:16px;font-weight:800;color:rgba(255,255,255,.45);">Comanda vazia</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.25);margin-top:6px;">Os itens adicionados pelo caixa aparecerão aqui automaticamente</div>
+    </div>`;
+  } else {
+    let tot=0;
+    items.forEach((item,idx)=>{
+      const v=toF(item.preco)*item.qty;tot+=v;
+      const acc=getCatInfo(item.categoria).accent;
+      h+=`<div class="card" style="animation-delay:${idx*40}ms">
+        <div class="cimg">
+          ${item.url_imagem
+            ?`<img src="${item.url_imagem}" alt="${item.nome}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';this.nextSibling.style.display='flex'"/><div class="cimg-placeholder" style="display:none">${item.nome}</div>`
+            :`<div class="cimg-placeholder">${item.nome}</div>`}
+        </div>
+        <div class="cinfo" style="flex:1;min-width:0;">
+          <div class="cname">${item.nome||'?'}</div>
+          <div class="csub">${item.descricao||''}</div>
+          <div class="cprice" style="color:${acc}">${item.preco} × ${item.qty}</div>
+        </div>
+        <div style="font-size:15px;font-weight:900;color:${acc};flex-shrink:0;">R$ ${v.toFixed(2).replace('.',',')}</div>
+      </div>`;
+    });
+    h+=`<div class="totbar">
+      <span style="font-size:15px;font-weight:700;">Total</span>
+      <span style="font-size:22px;font-weight:900;color:#f5c842;font-family:'Bebas Neue',sans-serif;letter-spacing:.04em;">R$ ${tot.toFixed(2).replace('.',',')}</span>
+    </div>`;
+  }
+
+  h+=`<button onclick="openCard()" style="width:100%;padding:15px;border-radius:16px;background:linear-gradient(135deg,#f5c842,#f09000);color:#000;font-family:'Nunito',sans-serif;font-size:15px;font-weight:900;margin-top:20px;box-shadow:0 8px 32px rgba(245,200,66,.35);letter-spacing:.02em;border:none;cursor:pointer;">🍺 Ver Cardápio Digital</button>`;
+
+  $('cbody').innerHTML=h;
+}
+
+function openCard(){$('cardover').classList.add('on');buildCardapio();}
+function closeCard(){$('cardover').classList.remove('on');}
+
+function buildCardapio(){
+  const content=$('cardcontent');content.innerHTML='';
+  const cats=[...new Set(Object.values(produtos).map(p=>p.categoria).filter(Boolean))];
+
+  cats.forEach(cat=>{
+    const prods=getProdsBycat(cat);if(!prods.length)return;
+    const info=getCatInfo(cat);
+    const w=document.createElement('div');w.className='sec';w.dataset.cs=cat;
+    w.innerHTML=`<div class="shdr"><div class="sll" style="background:linear-gradient(to right,${info.accent}88,transparent)"></div><h2 class="stitle">${info.emoji} ${cat}</h2><div class="slr" style="background:linear-gradient(to left,${info.accent}88,transparent)"></div></div>`;
+    prods.forEach((p,pi)=>{
+      const c=document.createElement('div');c.className='card';c.style.animationDelay=pi*40+'ms';
+      c.innerHTML=`<div class="cimg">
+        ${p.url_imagem
+          ?`<img src="${p.url_imagem}" alt="${p.nome}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';this.nextSibling.style.display='flex'"/><div class="cimg-placeholder" style="display:none">${p.nome}</div>`
+          :`<div class="cimg-placeholder">${p.nome}</div>`}
+      </div>
+      <div class="cinfo" style="flex:1;min-width:0;">
+        <div class="cname">${p.nome}</div>
+        <div class="csub">${p.descricao||''}</div>
+        <div class="cprice" style="color:${info.accent}">${p.preco}</div>
+      </div>`;
+      w.appendChild(c);
+    });
+    content.appendChild(w);
+  });
+
+  const cn=$('cardnav');cn.innerHTML='';
+  cats.forEach(cat=>{
+    const info=getCatInfo(cat);
+    const b=document.createElement('button');b.className='nitem';b.dataset.cid=cat;
+    b.innerHTML=`<span class="ne">${info.emoji}</span><span class="nl">${cat.substring(0,5)}</span>`;
+    b.onclick=()=>document.querySelector(`[data-cs="${cat}"]`)?.scrollIntoView({behavior:'smooth',block:'start'});
+    cn.appendChild(b);
+  });
+
+  const obs=new IntersectionObserver(entries=>{
+    entries.forEach(e=>{if(!e.isIntersecting)return;
+      const cat=e.target.dataset.cs,info=getCatInfo(cat);
+      $('cardsecname').textContent=`${info.emoji} ${cat}`;
+      $('cardsecname').style.color=info.accent;trBg(info.bg);
+      cn.querySelectorAll('.nitem').forEach((b,i)=>{
+        const a=cats[i]===cat;b.classList.toggle('on',a);
+        b.style.background=a?info.accent+'22':'';b.style.borderTopColor=a?info.accent:'transparent';
+        b.querySelector('.nl').style.color=a?info.accent:'';
+      });
+    });
+  },{threshold:0.2,rootMargin:'-80px 0px -40% 0px'});
+  content.querySelectorAll('[data-cs]').forEach(el=>obs.observe(el));
+}
+
+// ═══════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════
+async function init(){
+  cmesa=new URLSearchParams(location.search).get('mesa');
+  cmesa=cmesa?parseInt(cmesa):null;
+
+  $('bg-img').style.backgroundImage=`url('${DEF_BG}')`;curBg=DEF_BG;
+
+  if(cmesa!==null){
+    // ── CLIENTE ──
+    $('aview').classList.add('hide');
+    $('cview').classList.add('on');
+
+    // Config listener
+    refCfg.on('value',snap=>{
+      const v=snap.val();if(v)config={...config,...v};
+    });
+
+    // Produtos listener
+    refProd.on('value',snap=>{
+      const v=snap.val();
+      if(v&&typeof v==='object'&&!Array.isArray(v)){
+        produtos=v;
+      } else {
+        produtos={};
+      }
+      renderClient();
+      $('lscreen').classList.add('hide');
+    });
+
+    // Comanda listener — tempo real instantâneo
+    refCom.child(String(cmesa)).on('value',snap=>{
+      const v=snap.val();
+      comandas[cmesa]=v&&typeof v==='object'?v:{};
+      renderClient();
+      $('lscreen').classList.add('hide');
+    });
+
+  } else {
+    // ── ADMIN ──
+
+    // Config listener
+    refCfg.on('value',snap=>{
+      const v=snap.val();
+      if(v)config={...config,...v};
+      else refCfg.set({nome_loja:'Disk Dourado'});
+      const nome=config.nome_loja||'Disk Dourado';
+      $('store-name').textContent=nome;document.title=nome;
+    });
+
+    // Produtos listener — se vazio, inicializa
+    refProd.on('value',snap=>{
+      const v=snap.val();
+      if(v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).length>0){
+        produtos=v;
+      } else {
+        // Primeira vez: salva produtos padrão
+        produtos={};
+        const batch={};
+        PROD_PADRAO.forEach(p=>{ const k=refProd.push().key; batch[k]=p; });
+        refProd.set(batch);
+        return;
+      }
+      renderAdmin();
+      $('lscreen').classList.add('hide');
+    });
+
+    // Comandas listener
+    refCom.on('value',snap=>{
+      const v=snap.val()||{};
+      comandas={};
+      Object.keys(v).forEach(k=>{
+        const mesa=parseInt(k);
+        const data=v[k];
+        comandas[mesa]=data&&typeof data==='object'?data:{};
+      });
+      // Atualiza qtys nos cards sem re-render total
+      Object.values(produtos).forEach((_,__)=>{});
+      if($('mc').innerHTML!==''){
+        document.querySelectorAll('.qnum[data-k]').forEach(el=>{
+          const key=el.dataset.k,q=getQty(key);
+          el.textContent=q;el.style.display=q>0?'block':'none';
+          const m=document.querySelector(`.bminus[data-k="${key}"]`);
+          if(m)m.style.display=q>0?'flex':'none';
+        });
+      }
+      upTabs();upHero();upFin();
+    });
+  }
+}
+
+init();
+</script>
+</body>
+</html>
